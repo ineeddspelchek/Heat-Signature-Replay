@@ -1,6 +1,4 @@
-#note: code doesn't properly handle pause stopping slow-mo and fast-mo, but it doesn't matter since the paused chunk just goes unrecorded anyway
-
-#TODO: figure out timeAdjusts; handle edge case where mouse held while reloading brings you into aim after reload done
+#note: code doesn't properly handle pause cutting-off slow-mo and fast-mo, but it doesn't matter since the paused chunk just goes unrecorded anyway
 
 import obspython as obs #lets you control obs
 
@@ -13,7 +11,7 @@ from pynput import keyboard #lets you check key presses
 from pynput.keyboard import Key #simplifies access of non-alphanumeric keys
 from pynput.keyboard import KeyCode #simplifies access of alphanumeric keys
 
-debugging = True #when True, program prints what's going on to the log 
+debugging = False #when True, program prints what's going on to the log 
 
 #---------------------------------------------------------------------------------------------------------------------------
 #Constants
@@ -41,7 +39,7 @@ aBarLoc1 = (207, 140) #top right coordinate on the black part of the "Cancel Aim
 aBarLoc2 = (90, 174) #bottom left coordinate on the black part of the "Cancel Aim" bar
 fTxtLoc = (69, 1052) #coordinate on the white part of the ">> x6" text
 
-timeAdjusts = [[0, .14], [-.14, 0.04], [-.13, 0], [0, 0], [-.35, -.35], [-.2, -.27]] #how much to add to certain timestamps to account for their inaccuracy; rows - rec, stop, throw, slow, aim, fast; columns - start, end
+timeAdjusts = [[0, .14], [-.12, -.25], [0, 0], [0, 0], [-.30, -.25], [-.2, -.27]] #how much to add to certain timestamps to account for their inaccuracy; rows - rec, stop, throw, slow, aim, fast; columns - start, end
 
 #---------------------------------------------------------------------------------------------------------------------------
 #Setup
@@ -198,7 +196,6 @@ def script_update(settings):
         
         #resets various values
         baseTime = 0
-        timePaused = 0
         recording = False
         paused = False
         throwing = False
@@ -218,7 +215,7 @@ def script_update(settings):
         replayEnabled = False
 
 def enable(props, prop): #called when "Enable Replay" pressed
-    global replayEnabled, kListener, mListener, baseTime, timePaused, recording, paused, throwing, wasThrowing, slow, aiming, fast, recTimes, stopTimes, throwTimes, slowTimes, aimTimes, fastTimes, heldKeys, heldButtons
+    global replayEnabled, kListener, mListener, baseTime, recording, paused, throwing, wasThrowing, slow, aiming, fast, recTimes, stopTimes, throwTimes, slowTimes, aimTimes, fastTimes, heldKeys, heldButtons
     
     if(not replayEnabled):
         #starts keyboard listener
@@ -231,7 +228,6 @@ def enable(props, prop): #called when "Enable Replay" pressed
         
         #resets various values
         baseTime = 0
-        timePaused = 0
         recording = False
         paused = False
         throwing = False
@@ -251,7 +247,7 @@ def enable(props, prop): #called when "Enable Replay" pressed
         replayEnabled = True
     
 def disable(props, prop): #called when "Disable Replay" pressed
-    global replayEnabled, kListener, mListener, baseTime, timePaused, recording, paused, throwing, wasThrowing, slow, aiming, fast, recTimes, stopTimes, throwTimes, slowTimes, aimTimes, fastTimes, heldKeys, heldButtons
+    global replayEnabled, kListener, mListener, baseTime, recording, paused, throwing, wasThrowing, slow, aiming, fast, recTimes, stopTimes, throwTimes, slowTimes, aimTimes, fastTimes, heldKeys, heldButtons
     
     if(replayEnabled):
         obs.obs_frontend_recording_stop() #makes obs stop recording
@@ -261,7 +257,6 @@ def disable(props, prop): #called when "Disable Replay" pressed
         
         #resets various values
         baseTime = 0
-        timePaused = 0
         recording = False
         paused = False
         throwing = False
@@ -295,7 +290,6 @@ def disable_coords(props, prop): #called when "Not Finding Coords" pressed
 #Key and Gamestate Logging
 
 baseTime = 0 #time recording starts
-timePaused = 0 #how long the recording has been paused in total thus far
 
 recording = False #is obs currently recording (pausing still counts as recording)
 paused = False #is the recording currently paused
@@ -318,7 +312,7 @@ fastTimes = []
 
 #when a key is pressed
 def on_press(key):    
-    global baseTime, timePaused, recording, paused, throwing, wasThrowing, slow, aiming, fast, recTimes, stopTimes, throwTimes, slowTimes, aimTimes, fastTimes, heldKeys
+    global baseTime, recording, paused, throwing, wasThrowing, slow, aiming, fast, recTimes, stopTimes, throwTimes, slowTimes, aimTimes, fastTimes, heldKeys
     
     #if backspace hit while looking for mouse coords, print current cursor position and then color at position after a pause
     if(findingMouseCoords and key == Key.backspace):
@@ -332,19 +326,19 @@ def on_press(key):
     if(key == REC_KB and not key in heldKeys): #if record key was pressed and wasn't held already
         if(not recording):
             baseTime = time.time() #sets record start time
-            recTimes.append(0) #adds start time to (empty) timestamp list (timePaused subtraction not necessary)
+            recTimes.append(0) #adds start time to (empty) timestamp list
             recording = True
             obs.obs_frontend_recording_start() #makes obs start recording
             if(debugging):
                 print("R")
         else:
-            recTimes.append(time.time()-baseTime-timePaused+timeAdjusts[0][1]) #adds end time to (now 2 long) record press timestamp list
+            recTimes.append(time.time()-baseTime+timeAdjusts[0][1]) #adds end time to (now 2 long) record press timestamp list
             if(paused):
-                stopTimes.append(time.time()-baseTime-timePaused+timeAdjusts[1][1]) #adds unpause time to timestamp list
+                stopTimes.append(time.time()-baseTime+timeAdjusts[1][1]) #adds unpause time to timestamp list
             recording = False
             obs.obs_frontend_recording_stop() #makes obs stop recording
             if(debugging):
-                print("--R--\n\n\n\n\n")
+                print("--R--")
                 
             #prints timestamps to log which is then pasted into the second python program (as a log line can only hold 2047 characters, and the "[Unknown Script] " text brings it down to 2030, the output is cut up into lines of 2000)
             out = str([recTimes, stopTimes, throwTimes, slowTimes, aimTimes, fastTimes])
@@ -355,7 +349,6 @@ def on_press(key):
             
             #resets various values
             baseTime = 0
-            timePaused = 0
             recording = False
             paused = False
             throwing = False
@@ -375,32 +368,29 @@ def on_press(key):
     if(recording):
         if(key == STOP_KB and not key in heldKeys): #if pause key was pressed and it wasn't held already
             if(not paused):
-                stopTimes.append(time.time()-baseTime-timePaused+timeAdjusts[1][0]) #adds pause time to timestamp list
+                stopTimes.append(time.time()-baseTime+timeAdjusts[1][0]) #adds pause time to timestamp list
                 paused = True
-                obs.obs_frontend_recording_pause(True) #makes obs pause recording
                 if(debugging):
                     print("P")
 
                 wasThrowing = False
                 if(throwing): #if was throwing when pause happened
-                    timeNow = time.time()-baseTime-timePaused
-                    throwTimes.append(throwTimes[-1]+timeAdjusts[2][1]) #adds throw end to timestamp list (same as throw start when pausing taken into account)
+                    throwTimes.append(time.time()-baseTime+timeAdjusts[2][1]) #adds throw end to timestamp list (same as throw start when pausing taken into account)
                     throwing = False
-                    timePaused += timeNow - throwTimes[-2] #adds time between last throw start and last throw end to time paused tracker
                     if(debugging):
                         print("--T--")
                 if(slow): #if was slow-mo when pause happened
-                    slowTimes.append(time.time()-baseTime-timePaused+timeAdjusts[3][1]) #adds slow-mo end to timestamp list
+                    slowTimes.append(time.time()-baseTime+timeAdjusts[3][1]) #adds slow-mo end to timestamp list
                     slow = False
                     if(debugging):
                         print("--S--")
                 if(aiming): #if was aiming when pause happened
-                    aimTimes.append(time.time()-baseTime-timePaused+timeAdjusts[4][1]) #adds aiming end to timestamp list
+                    aimTimes.append(time.time()-baseTime+timeAdjusts[4][1]) #adds aiming end to timestamp list
                     aiming = False
                     if(debugging):
                         print("--A--")
                 if(fast): #if was fast-mo when pause happened
-                    fastTimes.append(time.time()-baseTime-timePaused+timeAdjusts[5][1]) #adds fast mo end to timestamp list
+                    fastTimes.append(time.time()-baseTime+timeAdjusts[5][1]) #adds fast mo end to timestamp list
                     fast = False
                     if(debugging):
                         print("--F--")
@@ -420,32 +410,25 @@ def on_press(key):
                     tTimer = Timer(.2, checkIfThrowing) #set up delayed throw check
                     tTimer.start() #start 200ms timer till throwPause called
                 else:
-                    throwTimes.append(time.time()-baseTime-timePaused+timeAdjusts[2][0]) #adds throwing start to timestamp list
+                    throwTimes.append(time.time()-baseTime+timeAdjusts[2][0]) #adds throwing start to timestamp list
                     throwing = True
-                    obs.obs_frontend_recording_pause(True) #makes obs pause recording
                     if(debugging):
                         print("T")
                 
-            else:                    
-                timeNow = time.time()-baseTime-timePaused
-                throwTimes.append(throwTimes[-1]+timeAdjusts[2][1]) #adds throw end to timestamp list (same as throw start when pausing taken into account)
+            else:
+                throwTimes.append(time.time()-baseTime+timeAdjusts[2][1]) #adds throw end to timestamp list (same as throw start when pausing taken into account)
                 throwing = False
-                timePaused += timeNow - throwTimes[-2] #adds time between last throw start and last throw end to time paused tracker
-                obs.obs_frontend_recording_pause(False) #makes obs unpause recording
                 if(debugging):
                     print("--T--")
         elif(not slow and key == SLOW_KB and not key in heldKeys and not fast and not aiming): #if slow-mo key pressed and it wasn't held already
-            slowTimes.append(time.time()-baseTime-timePaused+timeAdjusts[3][0]) #adds slow-mo start to timestamp list
+            slowTimes.append(time.time()-baseTime+timeAdjusts[3][0]) #adds slow-mo start to timestamp list
             slow = True
             if(debugging):
                 print("S")
             if(throwing): #if was throwing before slow mo press
-                timeNow = time.time()-baseTime-timePaused
-                throwTimes.append(throwTimes[-1]+timeAdjusts[2][1]) #adds throw end to timestamp list (same as throw start when pausing taken into account)
+                throwTimes.append(time.time()-baseTime+timeAdjusts[2][1]) #adds throw end to timestamp list (same as throw start when pausing taken into account)
                 throwing = False
                 wasThrowing = True
-                timePaused += timeNow - throwTimes[-2] #adds time between last throw start and last throw end to time paused tracker
-                obs.obs_frontend_recording_pause(False) #makes obs unpause recording
                 if(debugging):
                     print("--T--")
         elif(not fast and key == FAST_KB and not key in heldKeys): #if fast-mo key pressed and it wasn't held already
@@ -453,12 +436,9 @@ def on_press(key):
             fTimer.start() #start 300ms timer till fast mo check called
             
     if(key in UNSTOP_KBs and not key in heldKeys): #key that unpauses/unthrows was pressed and it wasn't held already
-        if(throwing):                
-            timeNow = time.time()-baseTime-timePaused
-            throwTimes.append(throwTimes[-1]+timeAdjusts[2][1]) #adds throw end to timestamp list (same as throw start when pausing taken into account)
+        if(throwing):
+            throwTimes.append(time.time()-baseTime+timeAdjusts[2][1]) #adds throw end to timestamp list (same as throw start when pausing taken into account)
             throwing = False
-            timePaused += timeNow - throwTimes[-2] #adds time between last throw start and last throw end to time paused tracker
-            obs.obs_frontend_recording_pause(False) #makes obs unpause recording
             if(debugging):
                 print("--T--")
         elif(paused):
@@ -471,18 +451,17 @@ def on_press(key):
 
     #when a key is released
 def on_release(key): 
-    global baseTime, timePaused, slow, throwing, wasThrowing, fast, throwTimes, slowTimes, fastTimes
+    global baseTime, slow, throwing, wasThrowing, fast, throwTimes, slowTimes, fastTimes
     
     if(slow and key == SLOW_KB): #if slow-mo key released while in slow-mo
-        slowTimes.append(time.time()-baseTime-timePaused+timeAdjusts[3][1]) #adds slow-mo end to timestamp list
+        slowTimes.append(time.time()-baseTime+timeAdjusts[3][1]) #adds slow-mo end to timestamp list
         slow = False
         if(debugging):
             print("--S--")
         if(wasThrowing): #was throwing before slow-mo unfroze game
-            throwTimes.append(time.time()-baseTime-timePaused+timeAdjusts[2][0]) #adds throwing start to timestamp list
+            throwTimes.append(time.time()-baseTime+timeAdjusts[2][0]) #adds throwing start to timestamp list
             throwing = True
             wasThrowing = False
-            obs.obs_frontend_recording_pause(True) #makes obs pause recording
             if(debugging):
                 print("T")
     elif(fast and key == FAST_KB): #if fast-mo key released while in fast-mo
@@ -496,7 +475,7 @@ def on_release(key):
 
 #when the mouse is pressed or released
 def on_click(x, y, button, pressed):
-    global baseTime, timePaused, paused, throwing, throwTimes, heldButtons
+    global baseTime, paused, throwing, throwTimes, heldButtons
 
     if(recording):
         if(button == mouse.Button.left): #if left click pressed or released
@@ -530,114 +509,104 @@ def on_click(x, y, button, pressed):
                 heldButtons[1] = False
                 
         if(throwing and not pressed): #if was throwing and mouse press released
-            timeNow = time.time()-baseTime-timePaused
-            throwTimes.append(throwTimes[-1]+timeAdjusts[2][1]) #adds throw end to timestamp list (same as throw start when pausing taken into account)
+            throwTimes.append(time.time()-baseTime+timeAdjusts[2][1]) #adds throw end to timestamp list (same as throw start when pausing taken into account)
             throwing = False
-            timePaused += timeNow - throwTimes[-2] #adds time between last throw start and last throw end to time paused tracker
-            obs.obs_frontend_recording_pause(False) #makes obs unpause recording
             if(debugging):
                 print("--T--")
 
 #checks if game paused/unpause
 def checkIfPaused():
-    global baseTime, timePaused, paused, throwing, wasThrowing, slow, aiming, fast, stopTimes, throwTimes, slowTimes, aimTimes, fastTimes
+    global baseTime, paused, throwing, wasThrowing, slow, aiming, fast, stopTimes, throwTimes, slowTimes, aimTimes, fastTimes
     
     image = ImageGrab.grab() # take a screenshot
     if(image.getpixel(pLBarLoc) != (0, 0, 0) and image.getpixel(pRBarLoc) != (0, 0, 0)): #if two test points are not black meaning you've unpaused
         if(paused): #if not yet considered unpaused
-            timeNow = time.time()-baseTime-timePaused
-            stopTimes.append(stopTimes[-1]+timeAdjusts[1][1]) #adds unpause time to timestamp list
-            paused = False
-            timePaused += timeNow - stopTimes[-2] #adds time between last pause and last unpause to time paused tracker            
-            obs.obs_frontend_recording_pause(False) #makes obs unpause recording
+            stopTimes.append(time.time()-baseTime+timeAdjusts[1][1]) #adds unpause time to timestamp list
+            paused = False        
             if(debugging):
                 print("--P--")
             
             if(not fast and FAST_KB in heldKeys): #if fast-mo key was held while paused and it is still being held 
-                fastTimes.append(time.time()-baseTime-timePaused+timeAdjusts[5][0]) #adds fast-mo start to timestamp list
+                fastTimes.append(time.time()-baseTime+timeAdjusts[5][0]) #adds fast-mo start to timestamp list
                 fast = True
                 if(debugging):
                     print("F")
             elif(not slow and SLOW_KB in heldKeys): #if slow-mo key was held while paused and it is still being held (elif because fast-mo overrides slow-mo)
-                slowTimes.append(time.time()-baseTime-timePaused+timeAdjusts[3][0]) #adds slow-mo start to timestamp list
+                slowTimes.append(time.time()-baseTime+timeAdjusts[3][0]) #adds slow-mo start to timestamp list
                 slow = True
                 if(debugging):
                     print("S")
             
             if(not aiming and heldButtons[0] or heldButtons[1]): #if left or right click was held while paused and it is still being held
-                aimTimes.append(time.time()-baseTime-timePaused+timeAdjusts[4][0]) #adds aiming start to timestamp list
+                aimTimes.append(time.time()-baseTime+timeAdjusts[4][0]) #adds aiming start to timestamp list
                 aiming = True
                 if(debugging):
                     print("A")
                 
     else: #paused
         if(not paused): #if not yet considered paused
-            stopTimes.append(time.time()-baseTime-timePaused+timeAdjusts[1][0]) #adds pause time to timestamp list
+            stopTimes.append(time.time()-baseTime+timeAdjusts[1][0]) #adds pause time to timestamp list
             paused = True
-            obs.obs_frontend_recording_pause(True) #makes obs pause recording
             if(debugging):
                 print("P")
 
         wasThrowing = False
         if(throwing): #if was throwing when pause happened
-            timeNow = time.time()-baseTime-timePaused
-            throwTimes.append(throwTimes[-1]+timeAdjusts[2][1]) #adds throw end to timestamp list (same as throw start when pausing taken into account)
+            throwTimes.append(time.time()-baseTime+timeAdjusts[2][1]) #adds throw end to timestamp list (same as throw start when pausing taken into account)
             throwing = False
-            timePaused += timeNow - throwTimes[-2] #adds time between last throw start and last throw end to time paused tracker
             if(debugging):
                 print("--T--")
         if(slow): #if was slow-mo when pause happened
-            slowTimes.append(time.time()-baseTime-timePaused+timeAdjusts[3][1]) #adds slow-mo end to timestamp list
+            slowTimes.append(time.time()-baseTime+timeAdjusts[3][1]) #adds slow-mo end to timestamp list
             slow = False
             if(debugging):
                 print("--S--")
         if(aiming): #if was aiming when pause happened
-            aimTimes.append(time.time()-baseTime-timePaused+timeAdjusts[4][1]) #adds aiming end to timestamp list
+            aimTimes.append(time.time()-baseTime+timeAdjusts[4][1]) #adds aiming end to timestamp list
             aiming = False
             if(debugging):
                 print("--A--")
         if(fast): #if was fast-mo when pause happened
-            fastTimes.append(time.time()-baseTime-timePaused+timeAdjusts[5][1]) #adds fast mo end to timestamp list
+            fastTimes.append(time.time()-baseTime+timeAdjusts[5][1]) #adds fast mo end to timestamp list
             fast = False
             if(debugging):
                 print("--F--")
                 
 #checks if player throwing (used because pressing t while hovering over an inventory menu element, it doesn't actually make you throw)
 def checkIfThrowing():
-    global baseTime, timePaused, timeAdjusts, throwing, throwTimes
+    global baseTime, timeAdjusts, throwing, throwTimes
     
     image = ImageGrab.grab() #takes a screenshot
     if(not throwing and image.getpixel(aBarLoc1) == (0, 0, 0) and image.getpixel(aBarLoc2) == (0, 0, 0)):
-        throwTimes.append(time.time()-baseTime-timePaused+timeAdjusts[2][0]) #adds throwing start to timestamp list
+        throwTimes.append(time.time()-baseTime+timeAdjusts[2][0]) #adds throwing start to timestamp list
         throwing = True
-        obs.obs_frontend_recording_pause(True) #makes obs pause recording
         if(debugging):
             print("T")
         
 #checks if player aiming
 def checkIfAiming():
-    global baseTime, timePaused, timeAdjusts, aiming, aimTimes, slow, fast, slowTimes
+    global baseTime, timeAdjusts, aiming, aimTimes, slow, fast, slowTimes
     
     image = ImageGrab.grab() #takes a screenshot
     if(image.getpixel(aBarLoc1) == (0, 0, 0) and image.getpixel(aBarLoc2) == (0, 0, 0) and not fast and not throwing): #if two test points are black meaning you're at aiming speed (so long as you aren't in fast-mo or throwing) (can false positive on the rare occasion that you are paused and hovering over the first inventory slot and the cursor border is over the lower coord)
         if(not aiming): #if you weren't aiming already
-            aimTimes.append(time.time()-baseTime-timePaused+timeAdjusts[4][0]) #adds aiming start time to timestamp list
+            aimTimes.append(time.time()-baseTime+timeAdjusts[4][0]) #adds aiming start time to timestamp list
             aiming = True
             if(debugging):
                 print("A")
             
             if(slow):
-                slowTimes.append(time.time()-baseTime-timePaused+timeAdjusts[3][1]) #adds slow-mo end time to timestamp list
+                slowTimes.append(time.time()-baseTime+timeAdjusts[3][1]) #adds slow-mo end time to timestamp list
                 slow = False
                 if(debugging):
                     print("--S--")        
     elif(aiming): #if considered aiming, but not actually
-            aimTimes.append(time.time()-baseTime-timePaused+timeAdjusts[4][1]) #adds aiming end time to timestamp list
+            aimTimes.append(time.time()-baseTime+timeAdjusts[4][1]) #adds aiming end time to timestamp list
             aiming = False #stop considering aiming
             if(debugging):
                 print("--A--")
             if(SLOW_KB in heldKeys): #if slow-mo key was held while aiming and it is still being held
-                slowTimes.append(time.time()-baseTime-timePaused+timeAdjusts[3][0]) #adds slow-mo start to timestamp list
+                slowTimes.append(time.time()-baseTime+timeAdjusts[3][0]) #adds slow-mo start to timestamp list
                 slow = True
                 if(debugging):
                     print("S")
@@ -650,38 +619,35 @@ def checkAimingRepeat():
 
 #checks if fast mo
 def checkIfFast():
-    global baseTime, timePaused, throwing, wasThrowing, slow, aiming, fast, throwTimes, slowTimes, aimTimes, fastTimes
+    global baseTime, throwing, wasThrowing, slow, aiming, fast, throwTimes, slowTimes, aimTimes, fastTimes
     
     image = ImageGrab.grab() #takes a screenshot
     if(not fast and FAST_KB in heldKeys and image.getpixel(fTxtLoc) == (255, 255, 255)): #if test point is white meaning you're in fast-mo
-        fastTimes.append(time.time()-baseTime-timePaused+timeAdjusts[5][0]) #adds fast-mo start to timestamp list
+        fastTimes.append(time.time()-baseTime+timeAdjusts[5][0]) #adds fast-mo start to timestamp list
         fast = True
         if(debugging):
             print("F")
         
         if(aiming):
             #fast-mo overrides aiming speed
-            aimTimes.append(time.time()-baseTime-timePaused+timeAdjusts[4][1]) #adds aiming end time to timestamp list
+            aimTimes.append(time.time()-baseTime+timeAdjusts[4][1]) #adds aiming end time to timestamp list
             aiming = False #stop considering aiming
             if(debugging):
                 print("--A--")
             
         if(slow):
-            slowTimes.append(time.time()-baseTime-timePaused+timeAdjusts[3][1]) #adds slow-mo end to timestamp list
+            slowTimes.append(time.time()-baseTime+timeAdjusts[3][1]) #adds slow-mo end to timestamp list
             slow = False #fast mo overrides slow mo
             if(debugging):
                 print("--S--")
         if(throwing): #if was throwing before fast-mo press
-            timeNow = time.time()-baseTime-timePaused
-            throwTimes.append(throwTimes[-1]+timeAdjusts[2][1]) #adds throw end to timestamp list (same as throw start when pausing taken into account)
+            throwTimes.append(time.time()-baseTime+timeAdjusts[2][1]) #adds throw end to timestamp list (same as throw start when pausing taken into account)
             throwing = False
             wasThrowing = True
-            timePaused += timeNow - throwTimes[-2] #adds time between last throw start and last throw end to time paused tracker
-            obs.obs_frontend_recording_pause(False) #makes obs unpause recording
             if(debugging):
                 print("--T--")
     elif(fast and not FAST_KB in heldKeys):
-        fastTimes.append(time.time()-baseTime-timePaused+timeAdjusts[5][1]) #adds fast-mo end to timestamp list
+        fastTimes.append(time.time()-baseTime+timeAdjusts[5][1]) #adds fast-mo end to timestamp list
         fast = False
         if(debugging):
             print("--F--")
@@ -691,22 +657,20 @@ def checkIfFast():
         aTimer.start() #start 50ms timer till aim check called 
         
         if(SLOW_KB in heldKeys): #if slow-mo key was held while fast-mo was held and it is still being held
-            slowTimes.append(time.time()-baseTime-timePaused+timeAdjusts[3][0]) #adds slow-mo start to timestamp list
+            slowTimes.append(time.time()-baseTime+timeAdjusts[3][0]) #adds slow-mo start to timestamp list
             slow = True
             if(debugging):
                 print("S")
         if(wasThrowing): #was throwing before fast-mo unfroze game
-            throwTimes.append(time.time()-baseTime-timePaused+timeAdjusts[2][0]) #adds throwing start to timestamp list
+            throwTimes.append(time.time()-baseTime+timeAdjusts[2][0]) #adds throwing start to timestamp list
             throwing = True
             wasThrowing = False
-            obs.obs_frontend_recording_pause(True) #makes obs pause recording
             if(debugging):
                 print("T")
         
 def throwPause():
-    global baseTime, timePaused, timeAdjusts, throwing, throwTimes
-    throwTimes.append(time.time()-baseTime-timePaused+timeAdjusts[2][0]) #adds throwing start to timestamp list
+    global baseTime, timeAdjusts, throwing, throwTimes
+    throwTimes.append(time.time()-baseTime+timeAdjusts[2][0]) #adds throwing start to timestamp list
     throwing = True
-    obs.obs_frontend_recording_pause(True) #makes obs pause recording
     if(debugging):
         print("T")
