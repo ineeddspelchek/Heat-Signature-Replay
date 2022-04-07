@@ -30,7 +30,7 @@ pip3.6 install pynput
 pip3.6 install moviepy
 ~~~~
 4. Download the latest release of this program (two .py files) and put it in a folder on its own (www.github.com/ineeddspelchek/Heat-Signature-Replay/releases)
-5. Open `heatSigReplayProcessing.py` and edit `leaveFastMo` (`False` to slow down Fast Mo segments; `True` to not), inVidExt, and outVidExt to whatever you want
+5. Open `heatSigReplayProcessing.py` and edit `leaveFastMo` (`False` to slow down Fast Mo segments; `True` to not), inVidExt, and outVidExt to whatever you want (probably runs faster if you have both extensions be the same; .mov can be read but not outputted)
 6. Find some way to run `heatSigReplayProcessing.py` (I use Visual Studio Code; for some reason opening it with python.exe reads files from another folder instead of from the one it's in, so that won't work)
 7. Open OBS
 8. Go to Tools > Scripts
@@ -52,20 +52,21 @@ pip3.6 install moviepy
 2. Start OBS
 3. Open Script Menu
 4. Open `Script Log`
-5. Press `Enable Replay`
-6. Play game until you want to start recording.
-7. Unpause game if it is paused
-8. Press your record keybind
-9. Rip and Tear
-10. Once you are done, unpause the game if it is paused
-11. Press the record keybind again.
-12. Press `Disable Replay` unless you're confident you won't accidentally press record
-13. Drag the recording from OBS' folder to the folder containing this program and make sure it is the only video file in the folder
-14. Open the log
-15. Copy text from `[[` to `]]` (don't worry about copying line breaks or `[Unknown Script] `s in between just don't get anything before or after)
-16. Run `heatSigReplayProcessing.py` and input the copied text
-17. Wait for it to edit (should take x2-x4 the capture's length)
-18. Enjoy the output file placed in the same folder.
-19. Re-enable Replay if you disabled it.
-20. Continue playing.
-21. Close OBS once you're done (preferrably disabling replay before you do).
+5. Select `heatSigReplay.py`
+6. Press `Enable Replay`
+7. Play game until you want to start recording.
+8. Unpause game if it is paused
+9. Press your record keybind
+10. Rip and Tear
+11. Once you are done, unpause the game if it is paused
+12. Press the record keybind again.
+13. Press `Disable Replay` unless you're confident you won't accidentally press record
+14. Drag the recording from OBS' folder to the folder containing this program and make sure it is the only video file in the folder
+15. Open the log
+16. Copy text from `[[` to `]]` (don't worry about copying line breaks or `[Unknown Script] `s in between just don't get anything before or after)
+17. Run `heatSigReplayProcessing.py` and input the copied text
+18. Wait for it to edit (should take x2-x4 the capture's length)
+19. Enjoy the output file placed in the same folder.
+20. Re-enable Replay if you disabled it.
+21. Continue playing.
+22. Close OBS once you're done (preferrably disabling replay before you do).
